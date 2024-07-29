@@ -1,61 +1,47 @@
-import fitz 
 import nltk
-import spacy
-from transformers import pipeline
-from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.tokenize import word_tokenize, sent_tokenize
 from nltk.corpus import stopwords
 from string import punctuation
-from collections import Counter
+import heapq
+import re
 
 nltk.download('punkt')
 nltk.download('stopwords')
-nlp = spacy.load("en_core_web_sm")
 
-def text_extraction(pdf_path):
-    document = fitz.open(pdf_path)
-    text = ""
-    for page_num in range(len(document)):
-        page = document.load_page(page_num)
-        text += page.get_text()
+article_text = input("Enter the inpt text here:")
+article_text = re.sub(r'\[[0-9]*\]', ' ', article_text)
+article_text = re.sub(r'\s+', ' ', article_text)
+formatted_article_text = re.sub('[^a-zA-Z]', ' ', article_text )
+formatted_article_text = re.sub(r'\s+', ' ', formatted_article_text)
 
-    return text
+sentence_list = nltk.sent_tokenize(article_text)
+stopwords = stopwords.words('english')
+word_freq={}
+for word in nltk.word_tokenize(formatted_article_text):
+    if word not in stopwords:
+        if word not in word_freq.keys():
+            word_freq[word] = 1
+        else:
+            word_freq[word] += 1
 
+max_freq = max(word_freq.values())
+for word in word_freq.keys():
+    word_freq[word] = (word_freq[word]/max_freq)
 
-def extractive_summarizer(text, num_sentences=3):
-    sentences = sent_tokenize(text)
-    words = word_tokenize(text.lower())
-    stop_words = set(stopwords.words('english') + list(punctuation))
-    words = [word for word in words if word not in stop_words]
-    word_frequencies = Counter(words)
-    sentence_scores = {}
-    for sentence in sentences:
-        for word in word_tokenize(sentence.lower()):
-            if word in word_frequencies:
-                if sentence not in sentence_scores:
-                    sentence_scores[sentence] = word_frequencies[word]
+sent_scores = {}
+for sent in sentence_list:
+    for word in nltk.word_tokenize(sent.lower()):
+        if word in word_freq.keys():
+            if len(sent.split(' ')) < 20:
+                if sent not in sent_scores.keys():
+                    sent_scores[sent] = word_freq[word]
                 else:
-                    sentence_scores[sentence] += word_frequencies[word]
-    summarized_sentences = sorted(sentence_scores, key=sentence_scores.get, reverse=True)[:num_sentences]
-    summary = ' '.join(summarized_sentences)
-    return summary
+                    sent_scores[sent] += word_freq[word]
 
-def abstractive_summarizer(text):
-    summarizer = pipeline('summarization',model='facebook/bart-large-cnn')
-    summary = summarizer(text, max_length=130, min_length=30, do_sample=False)
-    return summary[0]['summary_text']
+summarized_sentences = heapq.nlargest(5, sent_scores, key=sent_scores.get)
 
-def main():
-    pdf_path = "C:\\Users\\Niall Dcunha\\Desktop\\Transfered from ASUS\\SIRE 2.0 BRD Niall D'cunha.pdf"
-
-    text = text_extraction(pdf_path)
-
-    extractive_summary = extractive_summarizer(text)
-    print("Extractive summary:\n", extractive_summary)
-
-    print("\n")
-    abstractive_summary = abstractive_summarizer(text)
-    print("Abstractive summary:\n", abstractive_summary)
-
-
-if __name__ == "__main__":
-    main()
+summary = ' '.join(summarized_sentences)
+print("\n\r")
+print("Summarized text:",summary)
+# print(len(formatted_article_text))
+# print(len(summary))
