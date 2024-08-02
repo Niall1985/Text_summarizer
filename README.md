@@ -1,4 +1,3 @@
-Sure! Here’s a README file for your text summarization script:
 # Text Summarization Script
 
 ## Overview
